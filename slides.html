@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>First Timers</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=1">
+  <script src="config.js?v=1"></script><script src="roster.js?v=1"></script><script src="data.js?v=1"></script>
+</head>
+<body>
+  <div class="deck" id="deck"></div>
+  <div class="ctl"><button id="prev">‹ Prev</button><select id="jump"></select><button id="next">Next ›</button><span class="pos" id="pos"></span></div>
+<script>
+var valueLabels = { id:'valueLabels', afterDatasetsDraw:function (chart) { var ctx = chart.ctx;
+  chart.data.datasets.forEach(function (ds, di) { var meta = chart.getDatasetMeta(di); if (meta.hidden || ds.type === 'line' && !ds.showValues) return;
+    meta.data.forEach(function (el, i) { var v = ds.data[i]; if (v == null) return;
+      ctx.save(); ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(v + (ds.suffix || ''), el.x, el.y - 4); ctx.restore(); }); }); } };
+function chart(canvas, labels, datasets, opts) { opts = opts || {};
+  return new Chart(canvas, { type:'bar', plugins:[valueLabels], data:{ labels:labels, datasets:datasets },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, plugins:{ legend:{display:false} },
+      scales:{ x:{ ticks:{color:'#ddd',font:{size:12}}, grid:{display:false}, border:{color:'#fff'} },
+               y:{ display:false, beginAtZero:true, grace:'22%', max:opts.max } } } }); }
+function bars(label, data, color) { return { label:label, data:data, backgroundColor:color, borderRadius:4, maxBarThickness:46 }; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
+function initials(n) { return n.split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '?'; }
+function cls(p) { return p == null ? 'na' : p >= 60 ? 'hi' : p >= 35 ? 'mid' : 'lo'; }
+function pct(r) { return r ? '<span class="' + cls(r.pct) + '">' + r.pct + '%</span> <small style="color:#777">' + r.n + '/' + r.of + '</small>' : '<span class="na">—</span>'; }
+function kpi(lab, val, note, c) { return '<div class="kpi" style="--kc:' + c + '"><div class="lab">' + lab + '</div><div class="val">' + val + '</div><div class="note">' + note + '</div></div>'; }
+
+FT.load(function (M) {
+  if (M.sample) { var b = document.createElement('div'); b.className = 'sample'; b.textContent = 'SAMPLE DATA — template preview'; document.body.appendChild(b); }
+  var deck = document.getElementById('deck'), slides = [], NW = M.weeks, WK = []; for (var i = 1; i <= NW; i++) WK.push(i);
+  var S = M.sundays, lastS = S[S.length - 1];
+
+  // ---------- overview + one page per group ----------
+  function summary(title, sub, group, id) {
+    var list = M.all(group), cum = 0, cumSeries = S.map(function (s) { cum += M.gottenOn(s.key, group); return cum; });
+    var ret = WK.map(function (w) { return M.retention(list, w); }), r4 = ret[NW - 1];
+    var rowsHtml = (group ? M.groups.filter(function (g) { return g.group === group; })[0].shepherds.map(function (s) { return { n: s.name, l: M.batches(s.name) }; })
+                          : M.groups.map(function (g) { return { n: g.group, l: M.all(g.group) }; })).map(function (x) {
+      var last = 0; x.l.forEach(function (bb) { if (lastS && bb.key === lastS.key) last += bb.gotten; });
+      return '<tr><td class="w">' + esc(x.n) + '</td><td>' + last + '</td><td class="g">' + x.l.reduce(function (s, bb) { return s + bb.gotten; }, 0) + '</td>' +
+        WK.map(function (w) { return '<td>' + pct(M.retention(x.l, w)) + '</td>'; }).join('') + '</tr>'; }).join('');
+    slides.push({ title: title, html:
+      '<div class="head"><div class="name">' + esc(title) + '</div><div class="choir">' + esc(sub) + '</div></div>' +
+      '<div class="kpis" style="top:19vh;grid-template-columns:repeat(4,1fr)">' +
+        kpi('Gotten this Sunday', lastS ? M.gottenOn(lastS.key, group) : '—', lastS ? 'deep sea fishing · ' + lastS.label : '', 'var(--blue)') +
+        kpi('Cumulative gotten', M.cumulative(group), 'every first timer so far', 'var(--gold)') +
+        kpi('Week 1 retention', ret[0] ? ret[0].pct + '%' : '—', ret[0] ? ret[0].n + ' of ' + ret[0].of + ' came back to church' : 'no data yet', 'var(--green)') +
+        kpi('Week ' + NW + ' retention', r4 ? r4.pct + '%' : '—', r4 ? r4.n + ' of ' + r4.of + ' still in church' : 'no batch has reached week ' + NW, 'var(--pink)') +
+      '</div>' +
+      '<div class="box" style="top:38vh;left:3vw;width:45vw;height:30vh"><div class="cap"><span class="pill">Cumulative gotten</span><span class="legend"><span><i class="sw" style="background:var(--sun)"></i> Running total, Sunday by Sunday</span></span></div><div class="area"><canvas id="' + id + 'a"></canvas></div></div>' +
+      '<div class="box" style="top:38vh;right:3vw;width:45vw;height:30vh"><div class="cap"><span class="pill">Retention</span><span class="legend"><span><i class="sw" style="background:var(--green)"></i> % in church, by week after they were gotten</span></span></div><div class="area"><canvas id="' + id + 'b"></canvas></div></div>' +
+      '<div class="box scroll" style="top:70vh;left:3vw;right:3vw;bottom:1.5vh"><table class="t"><thead><tr><th>' + (group ? 'Shepherd' : 'Group') + '</th><th>Gotten this Sunday</th><th>Cumulative</th>' +
+        WK.map(function (w) { return '<th>Week ' + w + ' retention</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>',
+      draw: function () {
+        chart(document.getElementById(id + 'a'), S.map(function (s) { return s.label; }), [bars('Cumulative', cumSeries, '#f5c518')]);
+        var d = bars('Retention', ret.map(function (r) { return r ? r.pct : null; }), '#35c27a'); d.suffix = '%';
+        chart(document.getElementById(id + 'b'), WK.map(function (w) { return 'Week ' + w; }), [d], { max: 120 });
+      } });
+  }
+  summary('First Timers', 'Overview', null, 'ov');
+  M.groups.forEach(function (g, gi) { summary('First Timers', 'Group: ' + g.group, g.group, 'g' + gi); });
+
+  // ---------- one page per shepherd ----------
+  M.groups.forEach(function (g) { g.shepherds.forEach(function (s, si) {
+    var id = 's' + slides.length, list = M.batches(s.name), cum = list.reduce(function (t, b) { return t + b.gotten; }, 0);
+    var latest = list[list.length - 1], active = list.slice(-NW), r1 = M.retention(list, 1), r4 = M.retention(list, NW), sel = latest ? latest.key : null, ch = null;
+    var rowsHtml = list.slice().reverse().map(function (b) {
+      return '<tr class="pick" data-k="' + b.key + '"><td class="w">' + esc(b.label) + '</td><td class="g">' + b.gotten + '</td>' +
+        WK.map(function (w) { var x = b.weeks[w]; return '<td>' + (x && x.church != null ? pct({ n: x.church, of: b.gotten, pct: b.gotten ? Math.round(100 * x.church / b.gotten) : 0 }) : '<span class="na">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('');
+    slides.push({ title: s.name + ' · ' + g.group, html:
+      '<div class="person">' + (s.photo ? '<img class="pic" src="' + esc(s.photo) + '">' : '<div class="pic">' + initials(s.name) + '</div>') +
+        '<div class="dt"><b>Location:</b> ' + (esc(s.location) || '—') + '</div></div>' +
+      '<div class="head"><div class="name">' + esc(s.name) + '</div><div class="choir">First Timers</div><div class="gov">Group: ' + esc(g.group) + '</div></div>' +
+      '<div class="kpis" style="top:24vh;grid-template-columns:repeat(4,1fr)">' +
+        kpi('Gotten this Sunday', latest && lastS && latest.key === lastS.key ? latest.gotten : 0, lastS ? 'deep sea fishing · ' + lastS.label : '', 'var(--blue)') +
+        kpi('Cumulative gotten', cum, list.length + ' Sundays so far', 'var(--gold)') +
+        kpi('Being followed up', active.reduce(function (t, b) { return t + b.gotten; }, 0), 'people in the last ' + NW + ' batches', 'var(--purple)') +
+        kpi('Week ' + NW + ' retention', r4 ? r4.pct + '%' : '—', r4 ? r4.n + ' of ' + r4.of + ' still in church' : (r1 ? 'week 1: ' + r1.pct + '%' : 'no data yet'), 'var(--pink)') +
+      '</div>' +
+      '<div class="box" style="top:41vh;left:3vw;width:52vw;bottom:1.5vh"><div class="cap"><span class="pill" id="' + id + 'cap">Batch</span><span class="legend">' +
+        '<span><i class="sw ln"></i> Gotten</span><span><i class="sw" style="background:var(--blue)"></i> Called</span><span><i class="sw" style="background:var(--purple)"></i> Visited</span>' +
+        '<span><i class="sw" style="background:var(--green)"></i> Rehearsal</span><span><i class="sw" style="background:var(--sun)"></i> In church</span></span></div>' +
+        '<div class="area"><canvas id="' + id + 'c"></canvas></div></div>' +
+      '<div class="box scroll" style="top:41vh;right:3vw;width:39vw;bottom:6vh"><div class="cap"><span class="pill">Every batch · in church</span><span class="legend"><span>tap a row to see its graph</span></span></div>' +
+        '<table class="t" id="' + id + 't"><thead><tr><th>Sunday gotten</th><th>Gotten</th>' + WK.map(function (w) { return '<th>Wk ' + w + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>',
+      draw: function () {
+        function show(k) { sel = k; var b = list.filter(function (x) { return x.key === k; })[0]; if (!b) return;
+          document.getElementById(id + 'cap').textContent = 'Batch of ' + b.label + ' · ' + b.gotten + ' gotten';
+          function col(f) { return WK.map(function (w) { var x = b.weeks[w]; return x && x[f] != null ? x[f] : null; }); }
+          if (ch) ch.destroy();
+          ch = chart(document.getElementById(id + 'c'), WK.map(function (w) { return 'Week ' + w; }), [
+            { type:'line', label:'Gotten', data:WK.map(function () { return b.gotten; }), borderColor:'#fff', borderDash:[6,5], borderWidth:2, pointRadius:0 },
+            bars('Called', col('called'), '#1f5fff'), bars('Visited', col('visited'), '#a78bfa'), bars('Rehearsal', col('rehearsal'), '#35c27a'), bars('In church', col('church'), '#f5c518') ]);
+          [].forEach.call(document.querySelectorAll('#' + id + 't tbody tr'), function (tr) { tr.classList.toggle('sel', +tr.dataset.k === k); }); }
+        [].forEach.call(document.querySelectorAll('#' + id + 't tbody tr'), function (tr) { tr.onclick = function () { show(+tr.dataset.k); }; });
+        // open on the newest batch that already has follow-up numbers
+        var start = list.slice().reverse().filter(function (b) { return Object.keys(b.weeks).length; })[0] || latest; if (start) show(start.key);
+      } });
+  }); });
+
+  deck.innerHTML = slides.map(function (s, i) { return '<section class="slide" id="sl' + i + '">' + s.html + '</section>'; }).join('');
+  var jump = document.getElementById('jump'); jump.innerHTML = slides.map(function (s, i) { return '<option value="' + i + '">' + (i + 1) + '. ' + esc(s.title === 'First Timers' ? (i === 0 ? 'Overview' : 'Group: ' + M.groups[i - 1].group) : s.title) + '</option>'; }).join('');
+  var cur = -1, drawn = {};
+  function go(i) { i = Math.max(0, Math.min(slides.length - 1, i)); if (i === cur) return;
+    if (cur >= 0) document.getElementById('sl' + cur).classList.remove('on');
+    cur = i; document.getElementById('sl' + i).classList.add('on'); jump.value = i; document.getElementById('pos').textContent = (i + 1) + ' / ' + slides.length;
+    if (slides[i].draw && !drawn[i]) { drawn[i] = 1; slides[i].draw(); } location.hash = i + 1; }
+  document.getElementById('prev').onclick = function () { go(cur - 1); }; document.getElementById('next').onclick = function () { go(cur + 1); };
+  jump.onchange = function () { go(+jump.value); };
+  document.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight' || e.key === ' ') go(cur + 1); if (e.key === 'ArrowLeft') go(cur - 1); });
+  window.addEventListener('hashchange', function () { go((parseInt(location.hash.slice(1), 10) || 1) - 1); });
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+}, function (e) { document.body.innerHTML = '<p style="padding:20px;color:#f88">' + e.message + '</p>'; });
+</script>
+</body>
+</html>
