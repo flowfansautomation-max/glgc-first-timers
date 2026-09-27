@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>First Timers</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="style.css?v=1">
-  <script src="config.js?v=1"></script><script src="roster.js?v=1"></script><script src="data.js?v=1"></script>
+  <link rel="stylesheet" href="style.css?v=2">
+  <script src="config.js?v=2"></script><script src="roster.js?v=2"></script><script src="data.js?v=2"></script>
 </head>
 <body>
   <div class="deck" id="deck"></div>
@@ -26,7 +26,7 @@ function bars(label, data, color) { return { label:label, data:data, backgroundC
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]; }); }
 function initials(n) { return n.split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase() || '?'; }
 function cls(p) { return p == null ? 'na' : p >= 60 ? 'hi' : p >= 35 ? 'mid' : 'lo'; }
-function pct(r) { return r ? '<span class="' + cls(r.pct) + '">' + r.pct + '%</span> <small style="color:#777">' + r.n + '/' + r.of + '</small>' : '<span class="na">—</span>'; }
+function cnt(r) { return r ? '<span class="' + cls(r.pct) + '">' + r.n + '</span><small style="color:#777"> / ' + r.of + '</small>' : '<span class="na">—</span>'; }
 function kpi(lab, val, note, c) { return '<div class="kpi" style="--kc:' + c + '"><div class="lab">' + lab + '</div><div class="val">' + val + '</div><div class="note">' + note + '</div></div>'; }
 
 FT.load(function (M) {
@@ -42,23 +42,24 @@ FT.load(function (M) {
                           : M.groups.map(function (g) { return { n: g.group, l: M.all(g.group) }; })).map(function (x) {
       var last = 0; x.l.forEach(function (bb) { if (lastS && bb.key === lastS.key) last += bb.gotten; });
       return '<tr><td class="w">' + esc(x.n) + '</td><td>' + last + '</td><td class="g">' + x.l.reduce(function (s, bb) { return s + bb.gotten; }, 0) + '</td>' +
-        WK.map(function (w) { return '<td>' + pct(M.retention(x.l, w)) + '</td>'; }).join('') + '</tr>'; }).join('');
+        WK.map(function (w) { return '<td>' + cnt(M.retention(x.l, w)) + '</td>'; }).join('') + '</tr>'; }).join('');
     slides.push({ title: title, html:
       '<div class="head"><div class="name">' + esc(title) + '</div><div class="choir">' + esc(sub) + '</div></div>' +
       '<div class="kpis" style="top:19vh;grid-template-columns:repeat(4,1fr)">' +
         kpi('Gotten this Sunday', lastS ? M.gottenOn(lastS.key, group) : '—', lastS ? 'deep sea fishing · ' + lastS.label : '', 'var(--blue)') +
         kpi('Cumulative gotten', M.cumulative(group), 'every first timer so far', 'var(--gold)') +
-        kpi('Week 1 retention', ret[0] ? ret[0].pct + '%' : '—', ret[0] ? ret[0].n + ' of ' + ret[0].of + ' came back to church' : 'no data yet', 'var(--green)') +
-        kpi('Week ' + NW + ' retention', r4 ? r4.pct + '%' : '—', r4 ? r4.n + ' of ' + r4.of + ' still in church' : 'no batch has reached week ' + NW, 'var(--pink)') +
+        kpi('In church · week 1', ret[0] ? ret[0].n + '<small> / ' + ret[0].of + '</small>' : '—', ret[0] ? 'came back the Sunday after' : 'no data yet', 'var(--green)') +
+        kpi('In church · week ' + NW, r4 ? r4.n + '<small> / ' + r4.of + '</small>' : '—', r4 ? 'still in church after ' + NW + ' weeks' : 'no batch has reached week ' + NW, 'var(--pink)') +
       '</div>' +
       '<div class="box" style="top:38vh;left:3vw;width:45vw;height:30vh"><div class="cap"><span class="pill">Cumulative gotten</span><span class="legend"><span><i class="sw" style="background:var(--sun)"></i> Running total, Sunday by Sunday</span></span></div><div class="area"><canvas id="' + id + 'a"></canvas></div></div>' +
-      '<div class="box" style="top:38vh;right:3vw;width:45vw;height:30vh"><div class="cap"><span class="pill">Retention</span><span class="legend"><span><i class="sw" style="background:var(--green)"></i> % in church, by week after they were gotten</span></span></div><div class="area"><canvas id="' + id + 'b"></canvas></div></div>' +
+      '<div class="box" style="top:38vh;right:3vw;width:45vw;height:30vh"><div class="cap"><span class="pill">Retention</span><span class="legend"><span><i class="sw" style="background:#666"></i> Gotten</span><span><i class="sw" style="background:var(--green)"></i> In church, by week after they were gotten</span></span></div><div class="area"><canvas id="' + id + 'b"></canvas></div></div>' +
       '<div class="box scroll" style="top:70vh;left:3vw;right:3vw;bottom:1.5vh"><table class="t"><thead><tr><th>' + (group ? 'Shepherd' : 'Group') + '</th><th>Gotten this Sunday</th><th>Cumulative</th>' +
-        WK.map(function (w) { return '<th>Week ' + w + ' retention</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>',
+        WK.map(function (w) { return '<th>In church · week ' + w + '</th>'; }).join('') + '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div>',
       draw: function () {
         chart(document.getElementById(id + 'a'), S.map(function (s) { return s.label; }), [bars('Cumulative', cumSeries, '#f5c518')]);
-        var d = bars('Retention', ret.map(function (r) { return r ? r.pct : null; }), '#35c27a'); d.suffix = '%';
-        chart(document.getElementById(id + 'b'), WK.map(function (w) { return 'Week ' + w; }), [d], { max: 120 });
+        chart(document.getElementById(id + 'b'), WK.map(function (w) { return 'Week ' + w; }), [
+          bars('Gotten', ret.map(function (r) { return r ? r.of : null; }), '#666'),
+          bars('In church', ret.map(function (r) { return r ? r.n : null; }), '#35c27a') ]);
       } });
   }
   summary('First Timers', 'Overview', null, 'ov');
@@ -70,7 +71,7 @@ FT.load(function (M) {
     var latest = list[list.length - 1], active = list.slice(-NW), r1 = M.retention(list, 1), r4 = M.retention(list, NW), sel = latest ? latest.key : null, ch = null;
     var rowsHtml = list.slice().reverse().map(function (b) {
       return '<tr class="pick" data-k="' + b.key + '"><td class="w">' + esc(b.label) + '</td><td class="g">' + b.gotten + '</td>' +
-        WK.map(function (w) { var x = b.weeks[w]; return '<td>' + (x && x.church != null ? pct({ n: x.church, of: b.gotten, pct: b.gotten ? Math.round(100 * x.church / b.gotten) : 0 }) : '<span class="na">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('');
+        WK.map(function (w) { var x = b.weeks[w]; return '<td>' + (x && x.church != null ? cnt({ n: x.church, of: b.gotten, pct: b.gotten ? Math.round(100 * x.church / b.gotten) : 0 }) : '<span class="na">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('');
     slides.push({ title: s.name + ' · ' + g.group, html:
       '<div class="person">' + (s.photo ? '<img class="pic" src="' + esc(s.photo) + '">' : '<div class="pic">' + initials(s.name) + '</div>') +
         '<div class="dt"><b>Location:</b> ' + (esc(s.location) || '—') + '</div></div>' +
@@ -79,7 +80,7 @@ FT.load(function (M) {
         kpi('Gotten this Sunday', latest && lastS && latest.key === lastS.key ? latest.gotten : 0, lastS ? 'deep sea fishing · ' + lastS.label : '', 'var(--blue)') +
         kpi('Cumulative gotten', cum, list.length + ' Sundays so far', 'var(--gold)') +
         kpi('Being followed up', active.reduce(function (t, b) { return t + b.gotten; }, 0), 'people in the last ' + NW + ' batches', 'var(--purple)') +
-        kpi('Week ' + NW + ' retention', r4 ? r4.pct + '%' : '—', r4 ? r4.n + ' of ' + r4.of + ' still in church' : (r1 ? 'week 1: ' + r1.pct + '%' : 'no data yet'), 'var(--pink)') +
+        kpi('In church · week ' + NW, r4 ? r4.n + '<small> / ' + r4.of + '</small>' : '—', r4 ? 'still in church after ' + NW + ' weeks' : (r1 ? 'week 1: ' + r1.n + ' of ' + r1.of : 'no data yet'), 'var(--pink)') +
       '</div>' +
       '<div class="box" style="top:41vh;left:3vw;width:52vw;bottom:1.5vh"><div class="cap"><span class="pill" id="' + id + 'cap">Batch</span><span class="legend">' +
         '<span><i class="sw ln"></i> Gotten</span><span><i class="sw" style="background:var(--blue)"></i> Called</span><span><i class="sw" style="background:var(--purple)"></i> Visited</span>' +
