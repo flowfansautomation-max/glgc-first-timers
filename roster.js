@@ -1,10 +1,9 @@
-/* First Timers roster — two groups, each with shepherds. PLACEHOLDER names until the real list arrives.
-   Public page: name, location and photo only (no phone numbers or dates of birth). */
+/* First Timers roster — two groups, each with shepherds.
+   Public page: shepherd name, location and photo only. First timers' names and numbers are never put here. */
 window.GROUPS = [
   { group: 'LP Michelle', shepherds: [
-    { name: 'Shepherd A', location: '', photo: '' }, { name: 'Shepherd B', location: '', photo: '' },
-    { name: 'Shepherd C', location: '', photo: '' }, { name: 'Shepherd D', location: '', photo: '' } ] },
+    { name: 'LP Michelle', location: '', photo: '' } ] },
   { group: 'Mary', shepherds: [
-    { name: 'Shepherd E', location: '', photo: '' }, { name: 'Shepherd F', location: '', photo: '' },
-    { name: 'Shepherd G', location: '', photo: '' }, { name: 'Shepherd H', location: '', photo: '' } ] }
+    { name: 'Mary', location: '', photo: '' }, { name: 'Kezia', location: '', photo: '' }, { name: 'Tifah', location: '', photo: '' },
+    { name: 'Zifah', location: '', photo: '' }, { name: 'LP Beatrice', location: '', photo: '' } ] }
 ];

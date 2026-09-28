@@ -75,9 +75,15 @@ window.FT = (function () {
       return g ? { n: a, of: g, pct: Math.round(100 * a / g) } : null; }
     return { sample: !!isSample, weeks: NW, groups: GROUPS, sundays: sundayList, batches: batches, all: all, gottenOn: gottenOn, cumulative: cumulative, retention: retention };
   }
+  function manual() {
+    return (window.MANUAL_REPORTS || []).map(function (r) { return { date: parseLocal(r.date), shepherd: r.shepherd, type: r.type, batch: parseLocal(r.batch), value: r.value }; })
+      .filter(function (r) { return r.date && r.shepherd; });
+  }
+  function parseLocal(v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || '')); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : parseDate(v); }
   function load(cb, onErr) {
-    if (!CFG.SHEET_ID) return cb(build(sample(), true));
-    fetchSheet().then(function (rows) { cb(build(rows, false)); }).catch(onErr || function () {});
+    var man = manual();
+    if (!CFG.SHEET_ID) return cb(man.length ? build(man, false) : build(sample(), true));
+    fetchSheet().then(function (rows) { cb(build(man.concat(rows), false)); }).catch(onErr || function () {});
   }
   return { load: load };
 })();
